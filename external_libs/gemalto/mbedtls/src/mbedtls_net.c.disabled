@@ -1,0 +1,155 @@
+#include "mbedtls/net.h"
+#include "mbedtls_config.h"
+
+#include "NetInterface.h"
+
+static NetInterface* _netiface;
+
+/**
+ * \brief          Configure MBEDTLS layer with the network interface to use
+ */
+void mbedtls_net_boot(NetInterface* netiface) {
+	_netiface = netiface;
+}
+
+/**
+ * \brief          Initialize a context
+ *                 Just makes the context ready to be used or freed safely.
+ *
+ * \param ctx      Context to initialize
+ */
+void mbedtls_net_init( mbedtls_net_context *ctx ) {
+	NetInterface_up(_netiface);
+}
+
+/**
+ * \brief          Initiate a connection with host:port in the given protocol
+ *
+ * \param ctx      Socket to use
+ * \param host     Host to connect to
+ * \param port     Port to connect to
+ * \param proto    Protocol: MBEDTLS_NET_PROTO_TCP or MBEDTLS_NET_PROTO_UDP
+ *
+ * \return         0 if successful, or one of:
+ *                      MBEDTLS_ERR_NET_SOCKET_FAILED,
+ *                      MBEDTLS_ERR_NET_UNKNOWN_HOST,
+ *                      MBEDTLS_ERR_NET_CONNECT_FAILED
+ *
+ * \note           Sets the socket in connected mode even with UDP.
+ */
+int mbedtls_net_connect( mbedtls_net_context *ctx, const char *host, const char *port, int proto ) {	
+	if(proto == MBEDTLS_NET_PROTO_UDP) {
+		return MBEDTLS_ERR_NET_SOCKET_FAILED;
+	}
+	
+	else if(proto == MBEDTLS_NET_PROTO_TCP) {
+		if((ctx->fd = NetInterface_open_tcp_socket(_netiface, host, *((const uint16_t*) port))) == -1) {
+			return MBEDTLS_ERR_NET_CONNECT_FAILED;
+		}
+	}
+	
+	else {
+		return MBEDTLS_ERR_NET_SOCKET_FAILED;
+	}
+	
+	return 0;
+}
+
+/**
+ * \brief          Set the socket blocking
+ *
+ * \param ctx      Socket to set
+ *
+ * \return         0 if successful, or a non-zero error code
+ */
+int mbedtls_net_set_block( mbedtls_net_context *ctx ) {
+	// ToDo
+	return 0;
+}
+
+/**
+ * \brief          Write at most 'len' characters. If no error occurs,
+ *                 the actual amount read is returned.
+ *
+ * \param ctx      Socket
+ * \param buf      The buffer to read from
+ * \param len      The length of the buffer
+ *
+ * \return         the number of bytes sent,
+ *                 or a non-zero error code; with a non-blocking socket,
+ *                 MBEDTLS_ERR_SSL_WANT_WRITE indicates write() would block.
+ */
+int mbedtls_net_send( void *ctx, const unsigned char *buf, size_t len ) {
+	int* fd;
+	
+	fd = (int*) ctx;
+	if(*fd == -1) {
+		return -1;
+	}
+		
+	return NetInterface_write_socket(_netiface, *fd, (uint8_t*) buf, len);
+}
+
+
+/**
+ * \brief          Read at most 'len' characters. If no error occurs,
+ *                 the actual amount read is returned.
+ *
+ * \param ctx      Socket
+ * \param buf      The buffer to write to
+ * \param len      Maximum length of the buffer
+ *
+ * \return         the number of bytes received,
+ *                 or a non-zero error code; with a non-blocking socket,
+ *                 MBEDTLS_ERR_SSL_WANT_READ indicates read() would block.
+ */
+int mbedtls_net_recv( void *ctx, unsigned char *buf, size_t len ) {
+	int* fd;
+	
+	fd = (int*) ctx;
+	if(*fd == -1) {
+		return -1;
+	}
+	
+	return NetInterface_read_socket(_netiface, *fd, (uint8_t*) buf, len);
+}
+
+/**
+ * \brief          Read at most 'len' characters, blocking for at most
+ *                 'timeout' seconds. If no error occurs, the actual amount
+ *                 read is returned.
+ *
+ * \param ctx      Socket
+ * \param buf      The buffer to write to
+ * \param len      Maximum length of the buffer
+ * \param timeout  Maximum number of milliseconds to wait for data
+ *                 0 means no timeout (wait forever)
+ *
+ * \return         the number of bytes received,
+ *                 or a non-zero error code:
+ *                 MBEDTLS_ERR_SSL_TIMEOUT if the operation timed out,
+ *                 MBEDTLS_ERR_SSL_WANT_READ if interrupted by a signal.
+ *
+ * \note           This function will block (until data becomes available or
+ *                 timeout is reached) even if the socket is set to
+ *                 non-blocking. Handling timeouts with non-blocking reads
+ *                 requires a different strategy.
+ */
+int mbedtls_net_recv_timeout( void *ctx, unsigned char *buf, size_t len,
+                      uint32_t timeout ) {
+
+	return mbedtls_net_recv(ctx, buf, len);
+}
+
+/**
+ * \brief          Gracefully shutdown the connection and free associated data
+ *
+ * \param ctx      The context to free
+ */
+void mbedtls_net_free( mbedtls_net_context *ctx ) {	
+	if(ctx->fd == -1) {
+		return;
+	}
+	
+	NetInterface_close_socket(_netiface, ctx->fd);
+}
