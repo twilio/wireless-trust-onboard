@@ -1,3 +1,18 @@
+# DEPRECATION NOTICE
+
+**NB:** This repository is deprecated and here for historical purposes only.  Please visit the new SDK:
+[Breakout Trust Onboard SDK](https://github.com/twilio/Breakout_Trust_Onboard_SDK)
+
+For more information on Trust Onboard, please visit the [product page](https://www.twilio.com/docs/wireless/trust-onboard).
+
+The updated SDK has improved samples, tools, and support for the latest Trust Onboard SIMs.
+
+---
+
+---
+
+---
+
 # Trust Onboard Sample for Programmable Wireless
 Trust Onboard is in Developer Preview with availability by request. Some features are not yet implemented, and others will change before the product is generally available. Developer Preview API's are very likely to change before the product reaches general availability.
 
